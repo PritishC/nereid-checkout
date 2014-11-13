@@ -46,6 +46,14 @@ class Sale:
         """
         return unicode(uuid4())
 
+    def email_subject(self, purpose=None):
+        """
+        Set the subject of the email to be sent.
+        """
+        # Generic message.
+        if purpose == "confirm":
+            return "New order has been placed"
+
     @classmethod
     @route('/orders')
     @route('/orders/<int:page>')
@@ -142,7 +150,10 @@ class Sale:
 
         if to_emails:
             # Send the order confirmation notification email
-            subject = "New order has been placed: #%s" % self.reference
+            subject = (
+                self.email_subject(purpose="confirm") + 
+                ": #%s" % self.reference
+            )
             email_message = render_email(
                 CONFIG['smtp_from'], to_emails, subject,
                 text_template='emails/sale-confirmation-text.jinja',
