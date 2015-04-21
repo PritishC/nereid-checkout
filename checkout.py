@@ -746,6 +746,17 @@ class Checkout(ModelView):
         if not cart.sale.shipment_address:
             return redirect(url_for('nereid.checkout.shipping_address'))
 
+        # Check if any goods product is present in cart sale lines which
+        # is out of stock
+        for line in cart.sale.lines:
+            if line.product.type == 'goods' and \
+                    not line.product.can_buy_from_eshop():
+                flash(_(
+                    "Product with code %s is out of stock. Please remove it to"
+                    " proceed." % (line.product.code)
+                ))
+                abort(redirect(url_for('nereid.cart.view_cart')))
+
         payment_form = cls.get_payment_form()
         credit_card_form = cls.get_credit_card_form()
 

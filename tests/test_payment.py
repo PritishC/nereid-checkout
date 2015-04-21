@@ -1467,6 +1467,58 @@ class TestCheckoutPayment(BaseTestCheckout):
                 self.assertEqual(rv.status_code, 302)
                 self.assertTrue('/payment' in rv.location)
 
+    def test_4000_line_cannot_buy_product(self):
+        """
+        Test that payment will fail if a product becomes out of stock in the
+        middle of payment.
+        """
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            app = self.get_app()
+
+            country = self.Country(self.available_countries[0])
+            subdivision = country.subdivisions[0]
+
+            with app.test_client() as c:
+                c.post(
+                    '/cart/add', data={
+                        'product': self.product1.id, 'quantity': 5
+                    }
+                )
+
+                # Sign-in
+                rv = c.post(
+                    '/checkout/sign-in', data={
+                        'email': 'new@example.com',
+                        'checkout_mode': 'guest',
+                    }
+                )
+                rv = c.post(
+                    '/checkout/shipping-address',
+                    data={
+                        'name': 'Sharoon Thomas',
+                        'street': 'Biscayne Boulevard',
+                        'streetbis': 'Apt. 1906, Biscayne Park',
+                        'zip': 'FL33137',
+                        'city': 'Miami',
+                        'country': country.id,
+                        'subdivision': subdivision.id,
+                    }
+                )
+
+                # Set min_warehouse_quantity to some positive number
+                self.product1.min_warehouse_quantity = 5
+                self.product1.save()
+
+                # Post to payment delivery-address with same flag
+                rv = c.post(
+                    '/checkout/payment',
+                    data={'use_shipment_address': 'True'}
+                )
+                # Redirect back to cart
+                self.assertEqual(rv.status_code, 302)
+                self.assertTrue(rv.location.endswith('/cart'))
+
 
 def suite():
     "Checkout test suite"
